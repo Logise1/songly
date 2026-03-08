@@ -61,8 +61,9 @@ async function initTV() {
     onSnapshot(gameDocRef, (doc) => {
         const newState = doc.data();
         if (newState) {
-            handleStateChange(gameState, newState);
+            const oldState = gameState;
             gameState = newState;
+            handleStateChange(oldState, newState);
         }
     });
 
@@ -81,43 +82,59 @@ function renderLobby() {
     const joinUrl = window.location.href.split('index.html')[0] + 'mobile.html?gameId=' + gameId;
 
     app.innerHTML = `
-        <div class="lobby-container animated">
-            <h1>Songly</h1>
-            <h2>Únete al juego</h2>
-            <div class="qr-box">
-                <canvas id="qrcode"></canvas>
+        <div class="lobby-layout">
+            <div class="lobby-banner animated">
+                <div class="banner-text">
+                    <h1>🕹️ Songly</h1>
+                    <p>Únete en <strong>${joinUrl}</strong></p>
+                    <p>Código de Sala: <strong style="font-size:1.5em">${gameId}</strong></p>
+                </div>
+                <div class="banner-qr">
+                    <canvas id="qrcode"></canvas>
+                </div>
             </div>
-            <h3>Entra a esta URL en tu móvil:</h3>
-            <p>${joinUrl}</p>
-            <h3>Código de Sala: <strong>${gameId}</strong></h3>
-            <p class="status-msg">Presiona <strong>ESPACIO</strong> o haz clic para Comenzar</p>
-            <button id="startBtn" style="margin-top:20px;">COMENZAR JUEGO</button>
-            <div id="playersList" class="players-grid"></div>
+            <div class="lobby-center animated">
+                <h2 id="lobbyTitle">Esperando Jugadores...</h2>
+                <div id="playersList" class="players-grid center-grid"></div>
+                <div class="lobby-actions">
+                    <p class="status-msg">Presiona <strong>ESPACIO</strong> o haz clic para Comenzar</p>
+                    <button id="startBtn">COMENZAR JUEGO</button>
+                </div>
+            </div>
         </div>
         <div class="music-note n1">♪</div>
         <div class="music-note n2">♫</div>
     `;
 
-    QRCode.toCanvas(document.getElementById('qrcode'), joinUrl, { width: 300, margin: 2, scale: 10 });
+    QRCode.toCanvas(document.getElementById('qrcode'), joinUrl, { width: 140, margin: 2, scale: 4 });
 
     document.getElementById('startBtn').addEventListener('click', startGame);
 
     // Resume audio context if browser paused it
     document.body.addEventListener('click', () => {
-        if (lobbyAudio.paused && gameState.state === 'lobby') {
+        if (lobbyAudio.paused && gameState && gameState.state === 'lobby') {
             lobbyAudio.play();
         }
     }, { once: true });
+
+    updatePlayersInLobby();
 }
 
 function updatePlayersInLobby() {
     if (!gameState || gameState.state !== 'lobby') return;
     const list = document.getElementById('playersList');
+    const title = document.getElementById('lobbyTitle');
     if (!list) return;
 
     list.innerHTML = '';
     const players = gameState.players || {};
-    Object.keys(players).forEach(pId => {
+    const keys = Object.keys(players);
+
+    if (title) {
+        title.innerText = keys.length > 0 ? `Jugadores Conectados (${keys.length})` : 'Esperando Jugadores...';
+    }
+
+    keys.forEach(pId => {
         const p = players[pId];
         list.innerHTML += `<div class="player-pill">👤 ${p.name} <span>⭐ ${p.score || 0}</span></div>`;
     });
@@ -341,12 +358,13 @@ function showFinalLeaderboard() {
 }
 
 function handleStateChange(oldState, newState) {
-    if (!oldState) return;
-
     if (newState.state === 'lobby') {
         updatePlayersInLobby();
     }
-    else if (newState.state === 'voting') {
+
+    if (!oldState) return;
+
+    if (newState.state === 'voting') {
         updateVoteCounts();
         if (oldState.state !== 'voting') renderVoting();
     }

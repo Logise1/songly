@@ -77,7 +77,9 @@ h1 {
     font-weight: 900;
     background: -webkit-linear-gradient(45deg, var(--brand-primary), var(--brand-secondary));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
+    color: transparent;
     margin-bottom: 2rem;
 }
 
